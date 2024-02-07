@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-boot-filebeat-alert
+  labels:
+    app-beat: spring-boot-filebeat
+spec:
+  selector:
+    app-beat: spring-boot-filebeat
+  ports:
+    - port: 8666

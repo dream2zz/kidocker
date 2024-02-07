@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: packetbeat-host-configmap
+data:
+  packetbeat.yml: |-
+    # Network device
+    packetbeat.interfaces.device: any
+
+    # Flows
+    packetbeat.flows:
+      timeout: 30s
+      #period: 10s
+      period: -1s
+
+    # Transaction Protocols
+    packetbeat.protocols:
+    - type: http
+      ports: [8666,8888,7777]
+      real_ip_header: "X-Forwarder-For"
+
+    # General
+    tags: ["k8s-beat"]
+
+    # Dashboards
+    setup.dashboards.enabled: true
+    #setup.dashboards.url
+
+    # Kibana
+    setup.kibana:
+      host: ${KIBANA_HOST}:${KIBANA_PORT}
+
+    # Outputs
+    ## Elastisearch output
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+
+

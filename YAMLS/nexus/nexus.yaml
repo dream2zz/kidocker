@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: nexus
+  labels: 
+    name: nexus
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: nexus
+      labels: 
+        name: nexus
+    spec: 
+      containers: 
+        - name: nexus
+          image: sonatype/nexus3:3.3.2
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - containerPort: 8081
+          volumeMounts: 
+            - name: nexus-data
+              mountPath: /nexus-data
+      volumes: 
+        - name: nexus-data
+          hostPath:
+            path: /root/hakugei-local/nexus
+---
+apiVersion: v1
+kind: Service
+metadata: 
+    name: nexus
+    labels:
+       name: nexus
+spec: 
+    type: NodePort
+    ports: 
+      - port: 8081
+        targetPort: 8081
+        nodePort: 10084
+    selector: 
+        name: nexus

@@ -1,0 +1,4 @@
+#! /bin/bash
+exec nohup /usr/local/filebeat/filebeat -e -c /usr/local/filebeat/filebeat.yml -d "publish" 2>/dev/null &
+exec nohup /usr/local/packetbeat/packetbeat -e -c /usr/local/packetbeat/packetbeat.yml -d "publish" 2>/dev/null &
+exec java -Djava.security.egd=file:/dev/./urandom -jar /app.jar 

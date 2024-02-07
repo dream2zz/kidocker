@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-configmap
+data:
+  filebeat.yml: |-
+    # Filebeat prospectors
+    filebeat.prospectors:
+    - type: log
+      enabled: true
+      paths:
+      - /logs/*.json
+
+      ## Multiline options
+      # 多行匹配规则设置
+      #multiline.pattern: ^\[
+      # true表示会对匹配到的行进行合并
+      #multiline.negate: true
+      # 设置合并到上一行的末尾还是开头
+      #multiline.match: after
+    
+    # Filebeat modules
+    filebeat.config.modules:
+      path: ${path.config}/modules.d/*.yml
+      reload.enabled: false
+      #reload.period: 10s
+
+    # General
+    #name: filebeat-app-logs
+    tags: ["k8s-beat"]
+
+    # Dashboards
+    setup.dashboards.enabled: true
+
+    # Kibana
+    setup.kibana:
+      host: ${KIBANA_HOST}:${KIBANA_PORT}
+  
+    # Outputs
+    ## Elasticsearch output
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+
+

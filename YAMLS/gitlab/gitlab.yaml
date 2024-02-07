@@ -1,0 +1,121 @@
+# https://raw.githubusercontent.com/sameersbn/docker-gitlab/master/docker-compose.yml
+
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: gitlab
+  labels: 
+    name: gitlab
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: gitlab
+      labels: 
+        name: gitlab
+    spec: 
+      containers: 
+        - name: redis
+          image: sameersbn/redis:latest
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - containerPort: 6379
+          # volumeMounts: 
+          #   - name: sameersbn-redis
+          #     mountPath: /var/lib/redis
+        - name: postgresql
+          image: sameersbn/postgresql:9.6-2
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - containerPort: 5432
+          env: 
+            - name: DB_USER
+              value: gitlab
+            - name: DB_PASS
+              value: password
+            - name: DB_NAME
+              value: gitlabhq_production
+            - name: DB_EXTENSION
+              value: pg_trgm
+          # volumeMounts: 
+          #   - name: sameersbn-postgre
+          #     mountPath: /var/lib/postgresql
+        - name: gitlab
+          image: sameersbn/gitlab:9.1.0-1
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - containerPort: 80
+            - containerPort: 22
+          env: 
+            - name: DEBUG
+              value: "true"
+            - name: DB_ADAPTER
+              value: postgresql
+            - name: DB_HOST
+              value: "10.2.255.10"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: gitlab
+            - name: DB_PASS
+              value: password
+            - name: DB_NAME
+              value: gitlabhq_production
+            - name: REDIS_HOST
+              value: "10.2.255.10"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: GITLAB_TIMEZONE
+              value: Shanghai
+            - name: GITLAB_HOST
+              value: localhost
+            - name: GITLAB_PORT
+              value: "80"
+            - name: GITLAB_SSH_PORT
+              value: "22"
+            - name: GITLAB_RELATIVE_URL_ROOT
+              value: "172.18.24.201"
+            - name: GITLAB_ROOT_PASSWORD
+              value: p@ssw0rd
+            - name: GITLAB_BACKUP_SCHEDULE
+              value: daily
+            - name: GITLAB_BACKUP_TIME
+              value: "01:00"
+          # volumeMounts: 
+          #   - name: sameersbn-gitlab
+          #     mountPath: /home/git/data
+      # volumes: 
+      #   - name: sameersbn-redis
+      #     hostPath:
+      #       path: /home/hakugei-local/gitlab/redis
+      #   - name: sameersbn-postgre
+      #     hostPath:
+      #       path: /home/hakugei-local/gitlab/postgre
+      #   - name: sameersbn-gitlab
+      #     hostPath:
+      #       path: /home/hakugei-local/gitlab/gitlab
+---
+apiVersion: v1
+kind: Service
+metadata: 
+    name: gitlab
+    labels:
+       name: gitlab
+spec: 
+    type: NodePort
+    clusterIP: 10.2.255.10
+    ports: 
+      - name: gitlab
+        port: 80
+        targetPort: 80
+        nodePort: 10080
+      - name: postgres
+        port: 6379
+        targetPort: 6379
+      - name: redis
+        port: 5432
+        targetPort: 5432
+    selector: 
+        name: gitlab

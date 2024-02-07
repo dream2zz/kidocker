@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: rocketchat
+  labels: 
+    name: rocketchat
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: rocketchat
+      labels: 
+        name: rocketchat
+    spec: 
+      containers: 
+        - name: mongo
+          image: mongo:3.0
+          ports:
+          - containerPort: 27017
+        - name: rocketchat
+          image: rocket.chat:0.47.0
+          env: 
+          - name: ROOT_URL
+            value: http://10.2.0.220
+          - name: MONGO_URL
+            value: mongodb://10.2.0.220:27017/admin
+          ports: 
+            - containerPort: 3000
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: rocketchat
+  labels:
+    name: rocketchat
+spec: 
+  type: NodePort
+  clusterIP: 10.2.0.220
+  ports: 
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+    - name: sonarqube
+      port: 3000
+      targetPort: 3000
+      nodePort: 10030
+  selector: 
+    name: rocketchat

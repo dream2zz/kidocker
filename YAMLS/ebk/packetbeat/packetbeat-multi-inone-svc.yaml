@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-beat-multi-inone
+  labels:
+    app-beat: app-beat-multi-inone
+spec:
+  selector:
+    app-beat: app-beat-multi-inone
+  ports:
+    - port: 8888
+      targetPort: 8666
+

@@ -1,0 +1,42 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: spring-boot-filebeat-mix
+  labels:
+    app-beat: spring-boot-filebeat-mix
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app-beat: spring-boot-filebeat-mix
+    spec:
+      terminationGracePeriodSeconds: 30 #优雅关闭
+      containers:
+      - name: spring-boot-filebeat
+        image: 172.18.3.108/ebk/app-filebeat-mix-slim:v1 
+        imagePullPolicy: Always
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        ports:
+        - containerPort: 8666
+        volumeMounts:
+        - name: config
+          mountPath: /usr/local/filebeat/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml
+      volumes:
+      - name: config
+        configMap:
+          name: filebeat-configmap

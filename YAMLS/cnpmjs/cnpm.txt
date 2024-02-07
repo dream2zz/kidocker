@@ -1,0 +1,8 @@
+$ docker pull hbrls/cnpm:0.0.5
+$ docker run -d \
+             -p 7001:7001 \
+             -p 7002:7002 \
+             -v /path/to/config:/var/app/cnpmjs.org/config \
+             -v /path/to/customize/README.md:/var/app/cnpmjs.org/docs/web/readme.md \
+             -v /path/to/storage:/var/www \
+             --name cnpm hbrls/cnpm:0.0.5

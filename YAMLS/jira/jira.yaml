@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: jira
+  labels: 
+    name: jira
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: jira
+      labels: 
+        name: jira
+    spec: 
+      containers: 
+        - name:  postgres
+          image: postgres:9.6.3-alpine
+          imagePullPolicy: IfNotPresent
+          env: 
+          - name: POSTGRES_USER
+            value: jira
+          - name: POSTGRES_PASSWORD
+            value: jira
+          ports: 
+            - containerPort: 5432
+          volumeMounts: 
+            - name: postgre
+              mountPath: /var/lib/postgresql
+        - name: jira
+          image: cptactionhank/atlassian-jira-software:7.3.8
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - containerPort: 8080 
+          volumeMounts: 
+            - name: jira
+              mountPath: /var/atlassian/jira
+      volumes: 
+        - name: postgre
+          hostPath:
+            path: /root/hakugei-local/jira-postgres
+        - name: jira
+          hostPath:
+            path: /root/hakugei-local/jira
+---
+apiVersion: v1
+kind: Service
+metadata: 
+    name: jira
+    labels:
+       name: jira
+spec: 
+    type: NodePort
+    clusterIP: 10.2.0.2
+    ports: 
+      - name: postgres
+        port: 5432
+        targetPort: 5432
+      - name: jira
+        port: 8080
+        targetPort: 8080
+        nodePort: 10082
+    selector: 
+        name: jira

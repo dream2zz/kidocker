@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-slave
+  labels:
+    name: jenkins-slave
+spec:
+  containers:
+    - name: jenkins-slave
+      image: zhu1531/jenkinsslave-withdocker:3.19
+      # imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true
+      env:
+        - name: JENKINS_URL
+          value: http://172.18.24.201:30081
+    - name: dind
+      image: docker:18.05.0-dind
+      # imagePullPolicy: IfNotPresent
+      securityContext:
+        privileged: true

@@ -1,0 +1,48 @@
+# CATALINA_BASE:   /usr/local/tomcat
+# CATALINA_HOME:   /usr/local/tomcat
+# CATALINA_TMPDIR: /usr/local/tomcat/temp
+# JRE_HOME:        /usr
+# CLASSPATH:       /usr/local/tomcat/bin/bootstrap.jar:/usr/local/tomcat/bin/tomcat-juli.jar
+
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: tomcat
+  labels: 
+    name: tomcat
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: tomcat
+      labels: 
+        name: tomcat
+    spec: 
+      containers: 
+        - name: tomcat
+          image: tomcat:9.0.0.M10-jre8-alpine
+          ports: 
+            - containerPort: 8080
+#          volumeMounts: 
+#            W- name: webapps
+#              mountPath: /usr/local/tomcat/webapps
+#      volumes: 
+#        - name: webapps
+#          nfs:
+#            server: 172.18.26.11
+#            path: /root/tomcat-webapps
+---
+apiVersion: v1
+kind: Service
+metadata: 
+    name: tomcat
+    labels:
+       name: tomcat
+spec: 
+    type: NodePort
+    ports: 
+      - port: 8080
+        targetPort: 8080
+        nodePort: 30880
+    selector: 
+        name: tomcat

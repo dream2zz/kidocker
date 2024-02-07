@@ -1,0 +1,54 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: app-beat-multi-inone
+  labels:
+    app-beat: app-beat-multi-inone
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app-beat: app-beat-multi-inone
+    spec:
+      terminationGracePeriodSeconds: 30 #优雅关闭
+      containers:
+      - name: app-beat-multi-inone
+        image: 172.18.3.108/ebk/app-beat-multi-inone-slim:v1 
+        #imagePullPolicy: Always
+        securityContext:
+          runAsUser: 0
+          capabilities:
+            add:
+            - NET_ADMIN
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        ports:
+        - containerPort: 8666
+        volumeMounts:
+        - name: filebeat-config
+          mountPath: /usr/local/filebeat/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml
+        - name: packetbeat-config
+          mountPath: /usr/local/packetbeat/packetbeat.yml
+          readOnly: true
+          subPath: packetbeat.yml
+      volumes:
+      - name: filebeat-config
+        configMap:
+          name: filebeat-configmap
+      - name: packetbeat-config
+        configMap:
+          name: packetbeat-multi-configmap

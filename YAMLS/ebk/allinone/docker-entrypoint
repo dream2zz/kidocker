@@ -1,0 +1,7 @@
+#! /bin/bash
+#echo "hello entrypoint"
+#cd /usr/local/filebeat
+exec nohup /usr/local/filebeat/filebeat -e -c /usr/local/filebeat/filebeat.yml -d "publish" 2>/dev/null &
+#sleep 20s
+#cd /
+exec java -Djava.security.egd=file:/dev/./urandom -jar /app.jar 

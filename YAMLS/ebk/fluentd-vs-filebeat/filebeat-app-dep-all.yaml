@@ -1,0 +1,113 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-configmap
+data:
+  filebeat.yml: |-
+    # Filebeat prospectors
+    filebeat.prospectors:
+    - type: log
+      enabled: true
+      paths:
+      - /logs/*.json
+      # 将每条日志记录中的key提升到根节点下
+      json.keys_under_root: true
+      # 遇到无法解析的json串，添加一个error字段记录错误
+      json.add_error_key: true
+
+    processors:
+    # 配置添加时区字段，~代表使用默认配置
+    - add_locale: ~
+    # 配置添加“主机”元数据
+    - add_host_metadata: ~
+ 
+    # Filebeat modules
+    filebeat.config.modules:
+      path: ${path.config}/modules.d/*.yml
+      reload.enabled: false
+      #reload.period: 10s
+
+    # General
+    tags: ["k8s-beat"]
+
+    # Dashboards
+    setup.dashboards.enabled: true
+
+    # Kibana
+    setup.kibana:
+      host: ${KIBANA_HOST}:${KIBANA_PORT}
+  
+    # Outputs
+    ## Elasticsearch output
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: spring-boot-filebeat
+  labels:
+    app-beat: spring-boot-filebeat
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app-beat: spring-boot-filebeat
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: spring-boot-filebeat
+        #image: 172.18.3.108/ebk/spring-boot-filebeat:v1
+        image: 172.18.3.108/ebk/spring-boot-log-host:v1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8666
+        volumeMounts:
+        - name: shared-log
+          mountPath: /logs
+        - name: timezone
+          mountPath: /etc/localtime
+
+      - name: filebeat
+        image: docker.elastic.co/beats/filebeat:6.3.0
+        args: [
+          "-c", "/etc/filebeat.yml",
+          "-e",
+        ]
+        securityContext:
+          runAsUser: 0
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        volumeMounts:
+        - name: shared-log
+          mountPath: /logs
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: config
+          mountPath: /etc/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml
+      volumes:
+      - name: shared-log
+        emptyDir: {}
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+      - name: config
+        configMap:
+          name: filebeat-configmap

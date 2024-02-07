@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: sonarqube
+  labels: 
+    name: sonarqube
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: sonarqube
+      labels: 
+        name: sonarqube
+    spec: 
+      containers: 
+        - name: postgres
+          image: postgres:9.6.3-alpine
+          imagePullPolicy: IfNotPresent
+          env: 
+          - name: POSTGRES_USER
+            value: sonar
+          - name: POSTGRES_PASSWORD
+            value: sonar
+          ports: 
+            - containerPort: 5432
+          volumeMounts: 
+            - name: sonarqube-db
+              mountPath: /var/lib/postgresql/data          
+        - name: sonarqube
+          image: sonarqube:6.4-alpine
+          imagePullPolicy: IfNotPresent
+          env: 
+          - name: SONARQUBE_JDBC_URL
+            value: jdbc:postgresql://10.2.0.3/sonar
+          ports: 
+            - containerPort: 9000
+          volumeMounts: 
+            - name: sonarqube-data
+              mountPath: /opt/sonarqube/data
+            - name: sonarqube-temp
+              mountPath: /opt/sonarqube/temp
+            - name: sonarqube-exts
+              mountPath: /opt/sonarqube/extensions 
+      volumes:
+        - name: sonarqube-db
+          hostPath:
+            path: /root/hakugei-local/sonarqube/db
+        - name: sonarqube-temp
+          hostPath:
+            path: /root/hakugei-local/sonarqube/data
+        - name: sonarqube-data
+          hostPath:
+            path: /root/hakugei-local/sonarqube/temp
+        - name: sonarqube-exts
+          hostPath:
+            path: /root/hakugei-local/sonarqube/exts
+# mkdir -p sonarqube/db sonarqube/data sonarqube/temp sonarqube/exts && chmod -R 777 sonarqube
+---
+apiVersion: v1
+kind: Service
+metadata: 
+    name: sonarqube
+    labels: 
+       name: sonarqube
+spec: 
+    type: NodePort
+    clusterIP: 10.2.0.3
+    ports: 
+      - name: postgres
+        port: 5432
+        targetPort: 5432
+      - name: sonarqube
+        port: 9000
+        targetPort: 9000
+        nodePort: 10083
+    selector: 
+        name: sonarqube

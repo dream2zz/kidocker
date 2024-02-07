@@ -1,0 +1,89 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: metricbeat
+  namespace: kube-system
+  labels:
+    k8s-beat: metricbeat
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-beat: metricbeat
+    spec:
+      serviceAccountName: kube-state-metrics
+      terminationGracePeriodSeconds: 30	#优雅关闭
+      hostNetwork: true	# 使用主机网络模式
+      dnsPolicy: ClusterFirstWithHostNet	# 使用k8s的dns
+      containers:
+      - name: metricbeat
+        image: docker.elastic.co/beats/metricbeat:6.3.0
+        args: [
+          "-c", "/etc/metricbeat.yml",
+          "-e",
+          "-system.hostfs=/hostfs",
+        ]
+        securityContext:
+          runAsUser: 0
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 200m
+            memory: 100Mi
+        volumeMounts:
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: config
+          mountPath: /etc/metricbeat.yml
+          readOnly: true
+          subPath: metricbeat.yml
+        - name: modules
+          mountPath: /usr/share/metricbeat/modules.d
+          readOnly: true
+        - name: dockersock
+          mountPath: /var/run/docker.sock
+        - name: proc
+          mountPath: /hostfs/proc
+          readOnly: true
+        - name: cgroup
+          mountPath: /hostfs/sys/fs/cgroup
+          readOnly: true
+        - name: data
+          mountPath: /usr/share/metricbeat/data
+      volumes:
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+      - name: dockersock
+        hostPath:
+          path: /var/run/docker.sock 
+      - name: config
+        configMap:
+          name: metricbeat-configmap
+      - name: modules
+        configMap:
+          name: metricbeat-modules-configmap
+      # 数据保存路径
+      - name: data
+        hostPath:
+          path: /ebk/metricbeat/data

@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: packetbeat-configmap
+  namespace: kube-system
+data:
+  packetbeat.yml: |-
+    # Network device
+    packetbeat.interfaces.device: any
+
+    # Flows
+    packetbeat.flows:
+      timeout: 30s
+      period: 10s
+
+    # Transaction Protocols
+    packetbeat.protocols:
+    - type: icmp
+      enabled: true
+
+    - type: amqp
+      ports: [5672]
+
+    - type: cassandra
+      ports: [9042]
+
+    - type: dns
+      ports: [53]
+      include_authorities: true
+      #include_additionals: true
+
+    - type: http
+      ports: [8666,8080]
+      real_ip_header: "X-Forwarder-For"
+
+    - type: memcache
+      ports: [11211]
+
+    - type: mysql
+      ports: [3306]
+
+    - type: pgsql
+      ports: [5432]
+
+    - type: redis
+      ports: [6379]
+
+    - type: thrift
+      ports: [9090]
+
+    - type: mongodb
+      ports: [27017]
+
+    - type: nfs
+      ports: [2049]
+
+    - type: tls
+      ports: [443]
+
+    # General
+    #name: packetbeat-k8s
+    tags: ["k8s-beat"]
+
+    # Dashboards
+    setup.dashboards.enabled: true
+    #setup.dashboards.url
+
+    # Kibana    
+    setup.kibana:
+      host: ${KIBANA_HOST}:${KIBANA_PORT}
+    
+    # Outputs
+    ## Elastisearch output
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+

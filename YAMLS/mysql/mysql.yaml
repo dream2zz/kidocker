@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: mysql
+  labels: 
+    name: mysql
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: mysql
+      labels: 
+        name: mysql
+    spec: 
+      containers: 
+        - name: mysql
+          image: mysql:8.0.0
+          env: 
+          - name: MYSQL_ROOT_PASSWORD
+            value: p@ssw0rd
+          ports: 
+            - containerPort: 3306
+              protocol: TCP
+          volumeMounts: 
+            - name: mysql
+              mountPath: /var/lib/mysql
+      volumes: 
+        - name: mysql
+          hostPath: 
+            path: /root/k8s-hostPath/mysql
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: mysql
+  labels:
+    name: mysql
+spec: 
+  type: NodePort
+  ports: 
+  - port: 3306
+    targetPort: 3306
+    nodePort: 3306
+  selector: 
+    name: mysql

@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-alert-configmap
+data:
+  kibana.yml: |-
+    server.name: kibana-alert
+    server.host: "0"
+    elasticsearch.url: http://elasticsearch:9200
+    elastalert.serverHost: elastalert-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana-alert
+  labels:
+    component: kibana-alert
+spec:
+  selector:
+    component: kibana-alert
+  type: NodePort
+  ports:
+    - name: http
+      port: 5601
+      nodePort: 30057
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: kibana-alert
+  labels:
+    component: kibana-alert
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: kibana-alert
+  template:
+    metadata:
+      labels:
+        component: kibana-alert
+    spec:
+      containers:
+      - name: kibana-alert
+        #image: docker.elastic.co/kibana/kibana-oss:6.3.0
+        image: 172.18.3.108/ebk/kibana-alert:v1
+        env:
+        - name: CLUSTER_NAME
+          value: myesdb
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        ports:
+        - containerPort: 5601
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/kibana/config/kibana.yml
+          subPath: kibana.yml
+      volumes:
+      - name: config
+        configMap:
+          name: kibana-alert-configmap

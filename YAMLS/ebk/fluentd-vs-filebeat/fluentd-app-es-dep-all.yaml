@@ -1,0 +1,141 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-es-configmap
+data:
+  fluent.conf: |-
+    # 配置导入指定路径指定规则名称的所有模块配置
+    @include /etc/fluent/config.d/*.conf	
+    # 配置不收集fluentd自己的日志，避免死循环
+    <match fluent.**>
+      @type null
+    </match>
+
+    # match指令用于确定输出目标，**表示匹配任意输入
+    <match **>
+      @type elasticsearch
+      @id out_es
+      log_level info
+      include_tag_key true
+      host "#{ENV['FLUENT_ELASTICSEARCH_HOST']}"
+      port "#{ENV['FLUENT_ELASTICSEARCH_PORT']}"
+      scheme "#{ENV['FLUENT_ELASTICSEARCH_SCHEME'] || 'http'}"
+      ssl_verify "#{ENV['FLUENT_ELASTICSEARCH_SSL_VERIFY'] || 'true'}"
+      user "#{ENV['FLUENT_ELASTICSEARCH_USER']}"
+      password "#{ENV['FLUENT_ELASTICSEARCH_PASSWORD']}"
+      reload_connections "#{ENV['FLUENT_ELASTICSEARCH_RELOAD_CONNECTIONS'] || 'true'}"
+      logstash_prefix "#{ENV['FLUENT_ELASTICSEARCH_LOGSTASH_PREFIX'] || 'logstash'}"
+      logstash_format true
+      <buffer>
+        flush_thread_count 8
+        flush_interval 5s
+        chunk_limit_size 2M
+        queue_limit_length 32
+        retry_max_interval 30
+        retry_forever true
+      </buffer>
+    </match>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-modules-es-configmap
+data:
+  app.input.conf: |-
+    # source指令用于确认输入源
+    <source>
+      # 该输入配置的唯一名称
+      @id fluentd-app.log
+      # 指定插件类型
+      @type tail
+      # 指定输入位置
+      path /logs/*.json
+      # (官方强烈推荐配置此项)fluentd会将上次读取的位置记录到此文件中
+      pos_file /logs/fluentd-app.log.pos
+      # 为该输入源添加标签，便于让match指令按一定规则确定输出源
+      tag app.k8s.*
+      # 开始从文件头部读取日志，而不是底部
+      read_from_head true
+      <parse>
+        @type json
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+      </parse>
+    </source>
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: fluentd-app-logging
+  labels:
+    k8s-app: fluentd-app-logging
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-app-logging
+    spec:
+      containers:
+      - name: spring-boot-fluentd
+        image: 172.18.3.108/ebk/spring-boot-log-host:v1 
+        #imagePullPolicy: Always
+        ports:
+        - containerPort: 8666
+        volumeMounts:
+        - name: shared-log
+          mountPath: /logs
+        - name: timezone
+          mountPath: /etc/localtime
+
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.2.2-debian-elasticsearch
+        securityContext:
+          runAsUser: 0
+        env:
+          - name: FLUENT_ELASTICSEARCH_HOST
+            value: "elasticsearch"
+          - name: FLUENT_ELASTICSEARCH_PORT
+            value: "9200"
+          - name: FLUENT_ELASTICSEARCH_SCHEME
+            value: "http"
+          - name: FLUENT_ELASTICSEARCH_SSL_VERIFY
+            value: "false"
+          - name: FLUENT_ELASTICSEARCH_USER
+            value: "elastic"
+          - name: FLUENT_ELASTICSEARCH_PASSWORD
+            value: "changeme"
+          - name: FLUENT_ELASTICSEARCH_RELOAD_CONNECTIONS
+            value: "true"
+          # 用于配置在es中的索引名称前缀
+          - name: FLUENT_ELASTICSEARCH_LOGSTASH_PREFIX
+            value: "logstash"
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: shared-log
+          mountPath: /logs
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: fluentd-config
+          mountPath: /fluentd/etc/
+          readOnly: true
+        - name: fluentd-modules-config
+          mountPath: /etc/fluent/config.d
+          readOnly: true
+      volumes:
+      - name: shared-log
+        emptyDir: {}
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+      - name: fluentd-config
+        configMap:
+          name: fluentd-es-configmap
+      - name: fluentd-modules-config
+        configMap:
+          name: fluentd-modules-es-configmap

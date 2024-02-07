@@ -1,0 +1,63 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: packetbeat
+  labels:
+    k8s-beat: packetbeat
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-beat: packetbeat
+    spec:
+      terminationGracePeriodSeconds: 30	#优雅关闭
+      hostNetwork: true	# 使用主机网络模式
+      dnsPolicy: ClusterFirstWithHostNet	# 使用k8s的dns
+      containers:
+      - name: packetbeat
+        image: docker.elastic.co/beats/packetbeat:6.3.0
+        args: [
+          "-c", "/etc/packetbeat.yml",
+          "-e",
+        ]
+        # 开启权限监测主机网络
+        securityContext:
+          runAsUser: 0
+          capabilities:
+            add:
+            - NET_ADMIN
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: config
+          mountPath: /etc/packetbeat.yml
+          #mountPath: /usr/share/packetbeat/packetbeat.yml
+          readOnly: true
+          subPath: packetbeat.yml
+      volumes:
+      - name: timezone
+        hostPath:
+          path: /etc/localtime 
+      - name: config
+        configMap:
+          name: packetbeat-host-configmap
+

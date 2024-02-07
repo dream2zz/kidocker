@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metricbeat-configmap
+  namespace: kube-system
+data:
+  metricbeat.yml: |-
+    # Modules configuration
+    metricbeat.config.modules:
+      path: ${path.config}/modules.d/*.yml
+      reload.enabled: false
+      #reload.period: 10s
+
+    # General
+    #name: metricbeat #不能配，否则默认system overview仪表板不能按宿主机名称分类显示 
+    tags: ["k8s-beat"]
+
+    # Dashboards
+    setup.dashboards.enabled: true
+    #setup.dashboards.url:
+
+    # Kibana    
+    setup.kibana:
+      host: ${KIBANA_HOST}:${KIBANA_PORT}
+    
+    # Outputs
+    ## Elastisearch output
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+

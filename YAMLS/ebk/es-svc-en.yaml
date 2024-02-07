@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: kube-system
+spec:
+  #ports:
+  #- name: http
+    #port: 9200
+    #protocol: TCP
+  #- name: transpor
+    #port: 9300
+    #protocol: TCP
+  type: ExternalName
+  externalName: elasticsearch.default.svc.cluster.local

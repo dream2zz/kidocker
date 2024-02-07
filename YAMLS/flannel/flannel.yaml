@@ -1,0 +1,26 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata: 
+  name: flannel
+  labels: 
+    name: flannel
+  namespace: kube-system
+spec: 
+  template: 
+    metadata: 
+      labels: 
+        name: flannel
+    spec: 
+      hostNetwork: true
+      containers: 
+      - name: flannel
+        image: quay.io/coreos/flannel:v0.8.0-amd64
+        securityContext: 
+          privileged: true
+        volumeMounts: 
+        - name: flannel
+          mountPath: /run/flannel
+      volumes: 
+        - name: flannel
+          hostPath: 
+            path: /root/flannel-env

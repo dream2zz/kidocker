@@ -1,0 +1,76 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: spring-boot-filebeat
+  labels:
+    app-beat: spring-boot-filebeat
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app-beat: spring-boot-filebeat
+    spec:
+      terminationGracePeriodSeconds: 30	#优雅关闭
+      containers:
+      - name: spring-boot-filebeat
+        image: 172.18.3.108/ebk/spring-boot-filebeat:v1 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8666
+        volumeMounts:
+        - name: shared-log
+          mountPath: /logs
+        - name: timezone
+          mountPath: /etc/localtime
+        #- name: storage
+          #mountPath: /data
+      #volumes:
+      #- name: storage
+        #emptyDir: {}
+
+      
+      - name: filebeat
+        image: docker.elastic.co/beats/filebeat:6.3.0
+        #args: [
+          #"-c", "/etc/filebeat.yml",
+          #"-e",
+        #]
+        securityContext:
+          runAsUser: 0
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        volumeMounts:
+        - name: shared-log
+          mountPath: /logs
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: config
+          mountPath: /usr/share/filebeat/filebeat.yml
+          #mountPath: /etc/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml
+      volumes:
+      - name: shared-log
+        emptyDir: {}
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+      - name: config
+        configMap:
+          name: filebeat-configmap
+          #items:
+          #- key: filebeat.yml
+            #path: filebeat.yml
+

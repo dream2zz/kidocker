@@ -1,0 +1,142 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-ds-configmap
+data:
+  filebeat.yml: |-
+    # Filebeat prospectors
+    filebeat.prospectors:
+    - type: log
+      enabled: true
+      paths:
+      #- /logs/*.json
+      - /var/log/containers/*spring-boot*.log
+      # 要添加这个配置，否则无法采集到日志
+      symlinks: true
+
+      ## Multiline options
+      # 多行匹配规则设置
+      multiline.pattern: ^\{"log":"\[
+      # true表示会对匹配到的行进行合并
+      multiline.negate: true
+      # 设置合并到上一行的末尾还是开头
+      multiline.match: after
+
+    processors:
+    - add_locale: ~
+ 
+    # Filebeat modules
+    filebeat.config.modules:
+      path: ${path.config}/modules.d/*.yml
+      reload.enabled: false
+      #reload.period: 10s
+
+    # General
+    tags: ["k8s-beat"]
+
+    # Dashboards
+    setup.dashboards.enabled: true
+
+    # Kibana
+    setup.kibana:
+      host: ${KIBANA_HOST}:${KIBANA_PORT}
+  
+    # Outputs
+    ## Elasticsearch output
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: spring-boot-filebeat
+  labels:
+    app-beat: spring-boot-filebeat
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app-beat: spring-boot-filebeat
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: spring-boot-filebeat
+        image: 172.18.3.108/ebk/spring-boot-log-host:v1
+        #imagePullPolicy: Always
+        ports:
+        - containerPort: 8666
+        volumeMounts:
+        - name: timezone
+          mountPath: /etc/localtime
+      volumes:
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat-app-container
+  labels:
+    app-beat: filebeat-app-container
+spec:
+  selector:
+    matchLabels:
+      app-beat: filebeat-app-container
+  template:
+    metadata:
+      labels:
+        app-beat: filebeat-app-container
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: filebeat
+        image: docker.elastic.co/beats/filebeat:6.3.0
+        args: [
+          "-c", "/etc/filebeat.yml",
+          "-e",
+        ]
+        securityContext:
+          runAsUser: 0
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          value: changeme
+        - name: KIBANA_HOST
+          value: kibana
+        - name: KIBANA_PORT
+          value: "5601"
+        volumeMounts:
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: config
+          mountPath: /etc/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      volumes:
+      - name: timezone
+        hostPath:
+          path: /etc/localtime
+      - name: config
+        configMap:
+          name: filebeat-ds-configmap
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers

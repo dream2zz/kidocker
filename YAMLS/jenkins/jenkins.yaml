@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: jenkins-alpine
+  labels: 
+    name: jenkins-alpine
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: jenkins-alpine
+      labels: 
+        name: jenkins-alpine
+    spec: 
+      containers: 
+        - name: jenkins-alpine
+          image: jenkinsci/jenkins:2.66-alpine
+          imagePullPolicy: IfNotPresent
+          ports: 
+            - containerPort: 8080
+            - containerPort: 50000
+          volumeMounts: 
+            - name: jenkins-alpine
+              mountPath: /var/jenkins_home
+      volumes: 
+        - name: jenkins-alpine
+          hostPath:
+            path: /root/hakugei-local/jenkins
+---
+apiVersion: v1
+kind: Service
+metadata: 
+    name: jenkins-alpine
+    labels:
+       name: jenkins-alpine
+spec: 
+    type: NodePort
+    ports: 
+      - name: p1
+        port: 8080
+        targetPort: 8080
+        nodePort: 10081
+      - name: p2
+        port: 50000
+        targetPort: 50000
+        # kubernetes-ci插件在运行时，会回调jenkins的50000
+        nodePort: 50000
+    selector: 
+        name: jenkins-alpine

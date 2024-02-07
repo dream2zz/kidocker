@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalert-configmap
+data:
+  elastalert_config.yaml: |-
+    # 定义规则目录
+    rules_folder: /opt/rules
+    scan_subdirectories: false
+    # 定义查询ES时间间隔，秒~周
+    run_every:
+      minutes: 1
+    # 缓存最近结果的时间周期
+    buffer_time:
+      minutes: 15
+    # ES相关信息
+    es_host: ${ES_HOST}
+    es_port: ${ES_PORT}
+    es_username: ${ES_USERNAME}
+    es_password: ${ES_PASSWORD}
+    # 定义用来ES中用来存储elastalert元数据的索引
+    writeback_index: elastalert_status
+    # 如果发送警报失败，其会在下面这段时间内重试
+    alert_time_limit:
+      days: 2
+    #hostname: ${HANDLER_SERVICE_HOST}
+    #port: ${HANDLER_SERVICE_PORT}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalert-rules-configmap
+data:
+  email_frequency.yaml: |-
+    # 可选
+    #es_host: ${ES_HOST}
+    #es_port: ${ES_PORT}
+    #es_username: ${ES_USERNAME}
+    #es_password: ${ES_PASSWORD}
+
+    # 唯一的规则名
+    name: Test frequency rule
+    # 规则类型，frequency对应num_events
+    type: frequency
+    # 监控的es数据索引
+    index: filebeat-*
+    # 当设置的报警规则触发2次后执行报警
+    num_events: 2
+    # num_events必须在这段时间内触发报警
+    timeframe:
+      # 触发报警有效期为1分钟内，可以定义hours等
+      minutes: 1
+    # 配置过滤器，ES的query-dsl语法
+    filter:
+    - query:
+        query_string:
+          query: "severity: ERROR"
+    
+    # 5分钟内，当ID不同时，会被当作不同的报警处理
+    query_key:
+      - monitor.id
+    realert:
+      minutes: 5
+
+    # 当发生匹配时报警类型
+    alert:
+    - post
+
+    # 相关设置
+    #http_post_url: 'http://${HANDLER_SERVICE_URL}:${HANDLER_SERVICE_PORT}/api/v1/elastalert/json'
+    #http_post_url: "http://10.43.17.47:8666/api/v1/elastalert/json"
+    http_post_url: "http://spring-boot-filebeat-alert:8666/api/v1/elastalert/json"
+    #http_post_url: "http://${HANDLER_SERVICE_HOST}:${HANDLER_SERVICE_PORT}/api/v1/elastalert/json"
+    #http_post_url: "http://$hostname$:$port$/api/v1/elastalert/json"
+    http_post_static_payload:
+      tag: just test http alert
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: elastalert
+  labels:
+    k8s-app: elastalert
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: elastalert
+    spec:
+      containers:
+      - name: elastalert
+        image: jertel/elastalert-docker
+        imagePullPolicy: Always
+        env:
+        - name: ES_HOST
+          value: elasticsearch
+        - name: ES_PORT
+          value: "9200"
+        - name: ES_USERNAME
+          value: elastic
+        - name: ES_PASSWORD
+          value: changeme
+        #- name: HANDLER_SERVICE_HOST
+          #value: "spring-boot-filebeat-alert"
+        #- name: HANDLER_SERVICE_PORT
+          #value: "8666"
+        volumeMounts:
+        - name: config
+          mountPath: /opt/config
+        - name: rules
+          mountPath: /opt/rules
+      volumes:
+      - name: config
+        configMap:
+          name: elastalert-configmap
+      - name: rules
+        configMap:
+          name: elastalert-rules-configmap

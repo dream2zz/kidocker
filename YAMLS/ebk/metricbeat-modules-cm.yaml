@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metricbeat-modules-configmap
+  namespace: kube-system
+data:
+  system.yml: |-
+    - module: system
+      period: 10s
+      metricsets:
+        - cpu
+        - load
+        - memory
+        - network
+        - process
+        - process_summary
+        - core
+        - diskio
+        - socket
+      processes: ['.*']
+      process.include_top_n:
+        by_cpu: 5
+        by_memory: 5
+
+    - module: system
+      period: 1m
+      metricsets:
+        - filesystem
+        - fsstat
+      processors:
+      - drop_event.when.regexp:
+          system.filesystem.mount_point: '^/(sys|cgroup|proc|dev|etc|host|lib)($|/)'
+
+    - module: system
+      period: 15m
+      metricsets:
+        - uptime
+
+  kubernetes.yml: |-
+    # 来自kubelet的node指标
+    - module: kubernetes
+      metricsets:
+        - node
+        - system
+        - pod
+        - container
+        - volume
+      period: 10s
+      hosts: ["localhost:10255"]
+      #hosts: ["172.18.24.201:8443/k8s/clusters/c-zmb5w"]  
+
+    # 来自kube-state-metrics的service指标,需要配合kube-state-metrics使用才行
+    - module: kubernetes
+      enabled: true
+      metricsets:
+        - state_node
+        - state_deployment
+        - state_replicaset
+        - state_pod
+        - state_container
+      period: 10s
+      hosts: ["kube-state-metrics:8080"]
+
+    # k8s的事件
+    - module: kubernetes
+      enabled: true
+      metricsets:
+        - event 
+  
+  docker.yml: |-
+    - module: docker
+      metricsets:
+        - "container"
+        - "cpu"
+        - "diskio"
+        - "healthcheck"
+        - "info"
+        - "image"
+        - "memory"
+        - "network"
+      hosts: ["unix:///var/run/docker.sock"]
+      period: 10s
+      enabled: true
+
+      # 用_替换.
+      labels.dedot: true
+ 

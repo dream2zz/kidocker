@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ReplicationController
+metadata: 
+  name: redmine
+  labels: 
+    app: redmine
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      name: redmine
+      labels: 
+        app: redmine
+    spec: 
+      containers: 
+        - name: redmine-db
+          image: mariadb:10.1.19
+          env: 
+            - name: MYSQL_DATABASE
+              value: redmine
+            - name: MYSQL_ROOT_PASSWORD
+              value: p@ssw0rd
+          ports: 
+            - containerPort: 3306
+          volumeMounts: 
+            - name: dir1
+              mountPath: /var/lib/mysql
+        - name: redmine
+          image: redmine:3.3.1-passenger
+          env: 
+            - name: REDMINE_DB_MYSQL
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: REDMINE_DB_PASSWORD
+              value: p@ssw0rd
+          ports: 
+            - containerPort: 3000
+          volumeMounts: 
+            - name: dir2
+              mountPath: /home/redmine/data
+      volumes: 
+        - name: dir1
+          nfs:
+            server: 172.18.26.11
+            path: /root/redmine-db
+        - name: dir2
+          nfs:
+            server: 172.18.26.11
+            path: /root/redmine-data
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: redmine
+  labels: 
+    app: redmine
+spec: 
+  type: NodePort
+  ports: 
+  - port: 10083
+    targetPort: 10083
+    nodePort: 30086
+  selector: 
+    app: redmine
